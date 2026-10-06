@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 與新技術的宏觀通脹路徑與貨幣政策調校模型</title>
+<meta name="description" content="AI 與新技術對通脹的跨期傳導：短期需求拉動、長期結構性去通脹，以及中性利率 r* 上移的央行政策校準。含互動模擬器、泰勒規則與政策矩陣。">
+<style>
+  :root{
+    --bg:#0b1120; --bg2:#111c33; --panel:#152238; --panel2:#1b2a45;
+    --line:#26374f; --line2:#33465f;
+    --ink:#e8eef8; --dim:#9fb0c8; --dim2:#7b8ca6;
+    --amber:#f5b13d; --amber-d:#c8860f;
+    --cyan:#4cc9f0; --emerald:#26c281; --indigo:#8b9dff; --rose:#f2668b;
+    --accent:#8b9dff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    line-height:1.75; -webkit-font-smoothing:antialiased;
+    font-size:16px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---------- header ---------- */
+  header{
+    border-bottom:1px solid var(--line); background:rgba(11,17,32,.94);
+    backdrop-filter:blur(10px); position:sticky; top:0; z-index:60;
+  }
+  .hd{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:14px 0;flex-wrap:wrap}
+  .hd h1{margin:4px 0 0;font-size:clamp(17px,2.4vw,23px);font-weight:800;letter-spacing:-.01em;line-height:1.35}
+  .tag{
+    display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;
+    letter-spacing:.02em;background:rgba(139,157,255,.12);color:var(--indigo);
+    border:1px solid rgba(139,157,255,.28);
+  }
+  .hd .meta{font-size:11.5px;color:var(--dim2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}
+
+  /* ---------- nav ---------- */
+  nav.toc{border-bottom:1px solid var(--line);background:var(--bg2);position:sticky;top:64px;z-index:55;overflow-x:auto}
+  nav.toc ul{display:flex;gap:4px;list-style:none;margin:0;padding:8px 0;min-width:max-content}
+  nav.toc a{
+    display:block;padding:6px 13px;border-radius:8px;font-size:13px;color:var(--dim);
+    white-space:nowrap;border:1px solid transparent;
+  }
+  nav.toc a:hover{background:var(--panel);color:var(--ink);text-decoration:none;border-color:var(--line)}
+  nav.toc a.on{background:rgba(139,157,255,.14);color:var(--indigo);border-color:rgba(139,157,255,.3)}
+
+  /* ---------- sections ---------- */
+  section{padding:44px 0;border-bottom:1px solid rgba(38,55,79,.5)}
+  @media(max-width:640px){section{padding:32px 0}}
+  h2.sec{
+    margin:0 0 6px;font-size:clamp(20px,3vw,27px);font-weight:800;letter-spacing:-.01em;
+    display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;
+  }
+  h2.sec .num{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--accent);
+    border:1px solid rgba(139,157,255,.35);border-radius:6px;padding:2px 8px;font-weight:700;
+  }
+  .sec-sub{margin:0 0 24px;color:var(--dim);font-size:15px;max-width:75ch}
+  h3.sub{font-size:16.5px;font-weight:750;margin:28px 0 10px;color:var(--ink)}
+
+  /* ---------- BLUF ---------- */
+  .bluf{
+    margin-top:26px;padding:26px 30px;border-radius:16px;
+    background:linear-gradient(135deg,rgba(139,157,255,.1),rgba(11,17,32,.5));
+    border:1px solid rgba(139,157,255,.26);
+  }
+  .bluf h2{margin:0 0 12px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);font-weight:800}
+  .bluf p{margin:0 0 12px;font-size:17px;line-height:1.85}
+  .bluf p:last-child{margin-bottom:0}
+  .bluf strong{color:#fff}
+
+  /* ---------- KPI ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .kpi .k{font-size:12px;color:var(--dim2);font-weight:600;line-height:1.5}
+  .kpi .v{font-size:26px;font-weight:800;margin:6px 0 3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kpi .n{font-size:11.5px;color:var(--dim2);line-height:1.5}
+
+  /* ---------- sim ---------- */
+  .sim{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;margin-top:8px}
+  .sim-grid{display:grid;grid-template-columns:320px 1fr;gap:26px;margin-top:20px}
+  @media(max-width:900px){.sim-grid{grid-template-columns:1fr;gap:20px}}
+  .ctl{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .ctl h3{margin:0 0 18px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);font-weight:750}
+  .field{margin-bottom:20px}
+  .field .row{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;margin-bottom:7px}
+  .field .row span:first-child{font-weight:600;color:var(--ink)}
+  .field .row b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800;font-variant-numeric:tabular-nums}
+  .field p{margin:7px 0 0;font-size:12px;color:var(--dim2);line-height:1.6}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;
+    background:var(--line2);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:17px;height:17px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:3px solid var(--bg2);box-shadow:0 0 0 1px var(--accent);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:17px;height:17px;border-radius:50%;background:var(--accent);
+    cursor:pointer;border:3px solid var(--bg2);
+  }
+  .presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .presets button{
+    flex:1;min-width:80px;padding:8px 10px;font-size:12px;font-weight:700;
+    background:var(--panel2);color:var(--dim);border:1px solid var(--line2);
+    border-radius:8px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .presets button:hover{background:rgba(139,157,255,.14);color:var(--ink);border-color:rgba(139,157,255,.4)}
+  .chart-box{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .chart-holder{position:relative;height:400px}
+  @media(max-width:640px){.chart-holder{height:300px}}
+  .legend-note{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px;margin-top:14px;font-size:12px;color:var(--dim)}
+  .legend-note div{display:flex;gap:8px;align-items:flex-start}
+  .legend-note i{flex:none;width:22px;height:3px;border-radius:2px;margin-top:8px}
+  .note{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:12.5px;color:var(--dim);line-height:1.7}
+
+  /* ---------- cards ---------- */
+  .cards2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.cards2{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .card .hd2{display:flex;gap:13px;align-items:center;margin-bottom:14px}
+  .card .ico{
+    flex:none;width:38px;height:38px;display:grid;place-items:center;border-radius:9px;
+    font-weight:800;font-family:ui-monospace,Menlo,monospace;font-size:14px;
+  }
+  .card h3{margin:0;font-size:16px;font-weight:750;line-height:1.4}
+  .card .en{font-size:11px;font-family:ui-monospace,Menlo,monospace;color:var(--dim2);display:block;margin-top:3px}
+  .card ul{margin:0;padding:0;list-style:none}
+  .card li{position:relative;padding-left:17px;margin-bottom:11px;font-size:14px;color:var(--dim);line-height:1.75}
+  .card li:last-child{margin-bottom:0}
+  .card li::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--line2)}
+  .card li strong{color:var(--ink);font-weight:700}
+
+  /* ---------- equations ---------- */
+  .eqs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0 28px}
+  @media(max-width:820px){.eqs{grid-template-columns:1fr}}
+  .eq{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .eq .lbl{font-size:11px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+  .eq .fml{
+    text-align:center;padding:14px 8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:clamp(15px,2.2vw,19px);color:#fff;background:rgba(11,17,32,.5);
+    border:1px solid var(--line);border-radius:8px;overflow-x:auto;white-space:nowrap;
+  }
+  .eq .fml em{font-style:italic;color:var(--cyan)}
+  .eq p{margin:11px 0 0;font-size:12.5px;color:var(--dim2);line-height:1.7}
+  .eq .greek{color:var(--dim2);font-size:12px;line-height:2}
+
+  /* ---------- table ---------- */
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:8px 0 20px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:760px}
+  thead{background:var(--bg2)}
+  th{
+    text-align:left;padding:13px 16px;font-size:11px;font-weight:750;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--dim2);border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  td{padding:15px 16px;border-bottom:1px solid rgba(38,55,79,.6);color:var(--dim);vertical-align:top;line-height:1.65}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:rgba(139,157,255,.05)}
+  .pill{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11.5px;font-weight:750;white-space:nowrap}
+  .pill.rose{background:rgba(242,102,139,.12);color:var(--rose);border:1px solid rgba(242,102,139,.28)}
+  .pill.amber{background:rgba(245,177,61,.12);color:var(--amber);border:1px solid rgba(245,177,61,.28)}
+  .pill.emerald{background:rgba(38,194,129,.12);color:var(--emerald);border:1px solid rgba(38,194,129,.28)}
+
+  /* ---------- callout / quote ---------- */
+  .callout{
+    border-left:3px solid var(--indigo);background:rgba(139,157,255,.07);
+    border-radius:0 11px 11px 0;padding:17px 20px;font-size:14px;color:var(--dim);line-height:1.85;
+  }
+  .callout strong{color:#fff}
+  .quote{
+    border-left:3px solid var(--line2);padding:4px 0 4px 17px;margin:16px 0;
+    color:var(--dim);font-size:14px;line-height:1.85;
+  }
+  .quote .who{display:block;margin-top:7px;font-size:12px;color:var(--dim2);font-family:ui-monospace,Menlo,monospace}
+
+  /* ---------- scenario cards ---------- */
+  .scen{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+  @media(max-width:880px){.scen{grid-template-columns:1fr}}
+  .scen .s{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .scen .s h4{margin:0 0 4px;font-size:14.5px;font-weight:750}
+  .scen .s .p{font-size:11px;font-family:ui-monospace,Menlo,monospace;color:var(--dim2);margin-bottom:11px}
+  .scen .s ul{margin:0;padding-left:16px;font-size:13px;color:var(--dim);line-height:1.8}
+  .scen .s ul li{margin-bottom:7px}
+  .scen .s ul li:last-child{margin-bottom:0}
+  .scen .s .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin:10px 0 0}
+
+  /* ---------- misc ---------- */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:880px){.grid3{grid-template-columns:1fr}}
+  .mini{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:17px}
+  .mini h4{margin:0 0 8px;font-size:14px;font-weight:750}
+  .mini p{margin:0;font-size:13px;color:var(--dim);line-height:1.75}
+  .mini .big{font-size:21px;font-weight:800;color:var(--cyan);font-variant-numeric:tabular-nums;margin-bottom:4px}
+
+  details{border:1px solid var(--line);border-radius:11px;background:var(--panel);margin-bottom:10px;overflow:hidden}
+  details summary{
+    padding:14px 17px;cursor:pointer;font-size:14.5px;font-weight:700;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+  }
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"+";font-size:18px;color:var(--accent);font-weight:400;flex:none}
+  details[open] summary::after{content:"–"}
+  details .body{padding:0 17px 17px;font-size:13.5px;color:var(--dim);line-height:1.85}
+  details .body p{margin:0 0 11px}
+  details .body p:last-child{margin-bottom:0}
+
+  footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--dim2);font-size:12px;text-align:center;line-height:1.9}
+  .foot-links{margin-top:8px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .disc{margin-top:14px;max-width:70ch;margin-left:auto;margin-right:auto;font-size:11.5px;color:#5f708a}
+
+  @media print{
+    header,nav.toc,.sim,.presets{display:none}
+    body{background:#fff;color:#000}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hd">
+    <div>
+      <span class="tag">Macroeconomics &amp; Monetary Policy</span>
+      <h1>AI 與新技術：跨期通脹傳導與中性利率 r* 調校</h1>
+    </div>
+    <div class="meta">AD-AS 動態模型 · 泰勒規則 · Ramsey 增長<br>2026</div>
+  </div>
+</header>
+
+<nav class="toc" id="toc">
+  <div class="wrap"><ul>
+    <li><a href="#bluf">結論先行</a></li>
+    <li><a href="#sim">互動模擬器</a></li>
+    <li><a href="#phases">兩階段機制</a></li>
+    <li><a href="#policy">央行校準</a></li>
+    <li><a href="#matrix">政策矩陣</a></li>
+    <li><a href="#scenarios">情境分析</a></li>
+    <li><a href="#indicators">監測指標</a></li>
+    <li><a href="#faq">常見誤區</a></li>
+  </ul></div>
+</nav>
+
+<main>
+
+<!-- ============ BLUF ============ -->
+<section id="bluf">
+  <div class="wrap">
+    <div class="bluf">
+      <h2>結論先行 · Bottom Line Up Front</h2>
+      <p>AI 對通脹的影響呈現明確的<strong>跨期 J 曲線（Intertemporal J-Curve）分歧</strong>：<strong>短期（前 3–5 年）為需求拉動型推升</strong>（資本支出狂潮與電網／資源瓶頸，推高通脹約 1.0%–1.8%）；<strong>中長期（5 年後）轉為強力結構性去通脹</strong>（全要素生產力 TFP 躍升、邊際成本歸零，壓抑通脹約 1.5%–2.5%）。</p>
+      <p>同時，AI 推升資本回報率，將使<strong>長期中性實質利率 r* 結構性上移 50–150 個基點</strong>。央行降息必須保持克制，<strong>不可套用後金融危機時代的低利率終點</strong>——否則會在通脹回落時製造被動寬鬆與資產泡沫。</p>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">通脹峰值 · Peak Inflation</div><div class="v" style="color:var(--amber)" id="kpi-peak">3.45%</div><div class="n" id="kpi-peak-n">出現在第 3 年</div></div>
+      <div class="kpi"><div class="k">轉折臨界點 · Inflection</div><div class="v" style="color:var(--indigo)" id="kpi-inflect">第 5 年</div><div class="n">供給壓制力超越需求拉動</div></div>
+      <div class="kpi"><div class="k">穩態通脹 · Terminal π</div><div class="v" style="color:var(--emerald)" id="kpi-termpi">0.85%</div><div class="n">相較基準 2.0% 呈結構性受抑</div></div>
+      <div class="kpi"><div class="k">終點政策利率 · Terminal i</div><div class="v" style="color:var(--cyan)" id="kpi-termp">3.45%</div><div class="n">高於舊常態 2.5%</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SIM ============ -->
+<section id="sim">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">01</span> 宏觀動態模擬器：AI 15 年通脹與政策軌跡</h2>
+    <p class="sec-sub">調整三個結構性因子，即時觀察總通脹率 π<sub>t</sub>、中性實質利率 r*<sub>t</sub> 與泰勒政策利率 i<sub>t</sub> 的動態演變。所有數值由下方方程即時計算，非預錄。</p>
+
+    <div class="sim">
+      <div class="sim-grid">
+        <div class="ctl">
+          <h3>核心敏感度因子</h3>
+
+          <div class="field">
+            <div class="row"><span>基建投資與資源瓶頸強度</span><b style="color:var(--amber)" id="val-capex">70%</b></div>
+            <input type="range" id="slider-capex" min="10" max="100" value="70">
+            <p>決定短期算力、電網、金屬要素擠兌的高度與衝擊時長。</p>
+          </div>
+
+          <div class="field">
+            <div class="row"><span>全要素生產力潛力 (TFP)</span><b style="color:var(--emerald)" id="val-tfp">60%</b></div>
+            <input type="range" id="slider-tfp" min="10" max="100" value="60">
+            <p>決定企業自動化程度、邊際成本壓縮深度與去通脹力度。</p>
+          </div>
+
+          <div class="field" style="margin-bottom:0">
+            <div class="row"><span>市場集中度與定價溢價</span><b style="color:var(--cyan)" id="val-markup">30%</b></div>
+            <input type="range" id="slider-markup" min="0" max="80" value="30">
+            <p>寡頭壟斷愈高，降價傳導受阻，通脹降幅愈小。</p>
+          </div>
+
+          <div class="presets">
+            <button data-preset="70,60,30">基準情境</button>
+            <button data-preset="95,40,55">泡沫情境</button>
+            <button data-preset="45,90,15">樂觀情境</button>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-holder" id="chartHolder">
+            <canvas id="macroChart"></canvas>
+          </div>
+          <div class="legend-note">
+            <div><i style="background:var(--amber)"></i><span><b style="color:var(--amber)">淨通脹率 π<sub>t</sub></b>：前段攀升為 Capex 拉動，後段下滑為 AS 擴張。</span></div>
+            <div><i style="background:var(--cyan)"></i><span><b style="color:var(--cyan)">政策利率 i<sub>t</sub></b>：泰勒規則計算值，長期停在較高平台。</span></div>
+            <div><i style="background:var(--emerald)"></i><span><b style="color:var(--emerald)">中性實質利率 r*<sub>t</sub></b>：由 0.5% 結構性上移。</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpis" style="margin-top:18px">
+      <div class="kpi"><div class="k">累積通脹落差（15 年）</div><div class="v" style="font-size:22px;color:var(--amber)" id="kpi-cum">—</div><div class="n">相對固定 2% 基準的累積偏離</div></div>
+      <div class="kpi"><div class="k">穩態產出缺口衝擊</div><div class="v" style="font-size:22px;color:var(--indigo)" id="kpi-gap">—</div><div class="n">AS 擴張隱含的潛在產出上修</div></div>
+      <div class="kpi"><div class="k">泰勒規則隱含實質利率</div><div class="v" style="font-size:22px;color:var(--emerald)" id="kpi-real">—</div><div class="n">i<sub>t</sub> − π<sub>t</sub>，判斷政策鬆緊</div></div>
+      <div class="kpi"><div class="k">r* 上移幅度</div><div class="v" style="font-size:22px;color:var(--cyan)" id="kpi-rshift">—</div><div class="n">相對危機後 0.5% 舊均衡</div></div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <b style="color:var(--ink)">模型說明：</b>需求衝擊採 Gamma 型脈衝 <code>Γ(t)=k·(t/2.5)·e^(1−t/2.5)</code>，供給衝擊採邏輯斯蒂採用曲線 <code>S(t)=1/(1+e^(−0.85(t−5.5)))</code>。r*<sub>t</sub> = 0.5 + 0.35·需求 + 1.2·TFP·S(t)。泰勒規則 <code>i<sub>t</sub> = r*<sub>t</sub> + π<sub>t</sub> + 0.5(π<sub>t</sub> − 2)</code>。此為<strong>教學用簡化模型</strong>，非央行實際反應函數或投資建議。
+    </div>
+  </div>
+</section>
+
+<!-- ============ PHASES ============ -->
+<section id="phases">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">02</span> 傳導機制：為何是 J 曲線而非單向衝擊</h2>
+    <p class="sec-sub">同一個技術衝擊，在需求端與供給端的作用時間常數相差 5–8 年。這個時間差就是 J 曲線的來源。</p>
+
+    <div class="cards2">
+      <div class="card">
+        <div class="hd2">
+          <div class="ico" style="background:rgba(245,177,61,.12);color:var(--amber);border:1px solid rgba(245,177,61,.3)">01</div>
+          <div><h3>第 I 階段：導入期（總需求擴張推升通脹）</h3><span class="en">Demand-Pull &amp; Cost-Push</span></div>
+        </div>
+        <ul>
+          <li><strong>能源與電網剛性短缺：</strong>資料中心用電量指數級上升，而公用電廠與輸電擴建週期需 3–5 年，短期邊際發電成本遽增。</li>
+          <li><strong>關鍵大宗原物料擠兌：</strong>銅、變壓器、冷卻液、高端半導體封裝產能無法即時擴充，形成結構性瓶頸。</li>
+          <li><strong>新聞衝擊與財富效應：</strong>科技資產估值飆升提早放寬實質金融情勢，在生產力未兌現前刺激消費與信貸。</li>
+          <li><strong>勞動市場錯配：</strong>資料中心與電力工程人力需求暴增，局部工資溢價先於整體生產力提升出現。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="hd2">
+          <div class="ico" style="background:rgba(38,194,129,.12);color:var(--emerald);border:1px solid rgba(38,194,129,.3)">02</div>
+          <div><h3>第 II 階段：成熟期（正向供給衝擊壓制通脹）</h3><span class="en">Positive Aggregate Supply Shock</span></div>
+        </div>
+        <ul>
+          <li><strong>邊際生產成本極限壓縮：</strong>演算法複製成本近乎為零，廣泛降低代碼開發、客服、法律與生醫研發的試錯成本。</li>
+          <li><strong>工資—物價螺旋瓦解：</strong>白領常規工作自動化削弱特定族群的工資議價權，阻斷成本端螺旋上漲。</li>
+          <li><strong>供應鏈動態出清：</strong>庫存管理與需求預測精準度大幅提高，消弭供需錯配帶來的週期性溢價。</li>
+          <li><strong>服務業可貿易化：</strong>原本不可跨境交付的服務（法律、會計、診斷）變得可規模化複製，競爭壓低價格。</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="sub">時間常數對照：為何兩股力量不同步</h3>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>傳導渠道</th><th>首次顯著</th><th>峰值</th><th>衰減期</th><th>方向</th></tr></thead>
+        <tbody>
+          <tr><td>資料中心 Capex 與設備投資</td><td>第 0–1 年</td><td>第 2–3 年</td><td>3–4 年</td><td><span class="pill amber">需求 ↑ 通脹</span></td></tr>
+          <tr><td>電力與電網瓶頸</td><td>第 1–2 年</td><td>第 3–5 年</td><td>5–7 年</td><td><span class="pill amber">成本 ↑ 通脹</span></td></tr>
+          <tr><td>關鍵礦產與封裝產能</td><td>第 1 年</td><td>第 2–4 年</td><td>4–6 年</td><td><span class="pill amber">成本 ↑ 通脹</span></td></tr>
+          <tr><td>白領流程自動化</td><td>第 3–4 年</td><td>第 6–9 年</td><td>持續（結構性）</td><td><span class="pill emerald">供給 ↑ 通脹 ↓</span></td></tr>
+          <tr><td>服務業可貿易化</td><td>第 4–5 年</td><td>第 8–12 年</td><td>持續（結構性）</td><td><span class="pill emerald">供給 ↑ 通脹 ↓</span></td></tr>
+          <tr><td>資本回報率與 r* 上移</td><td>第 2–3 年</td><td>第 8–15 年</td><td>持續（結構性）</td><td><span class="pill emerald">實質利率 ↑</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-sub" style="font-size:13.5px">需求側渠道幾乎全部在 3–5 年內衰減；供給側渠道一旦啟動則<strong>不會回退</strong>。因此 J 曲線的轉折點並非政策選擇的結果，而是技術擴散速度的函數。</p>
+  </div>
+</section>
+
+<!-- ============ POLICY ============ -->
+<section id="policy">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">03</span> 央行操作核心：r* 重估與泰勒規則校準</h2>
+    <p class="sec-sub">央行無法再依循後金融危機時代的「長期停滯（Secular Stagnation）」低利率模型。技術革命對資本回報率的拉抬，要求重新界定貨幣政策的限制性中樞。</p>
+
+    <div class="eqs">
+      <div class="eq">
+        <div class="lbl">1 · 新古典均衡實質利率（Ramsey）</div>
+        <div class="fml">r* = <em>θ</em> · g + <em>ρ</em></div>
+        <div class="greek">θ = 跨期替代彈性倒數（約 1–2）　ρ = 時間偏好率　g = 趨勢潛在增長率</div>
+        <p>當 AI 提高長期生產力預期時，資本邊際產出（MPK）上升，出清市場要求更高的實質回報率。θ·g 一項即為技術進步的直接映射。</p>
+      </div>
+
+      <div class="eq">
+        <div class="lbl">2 · 動態泰勒規則（Expanded）</div>
+        <div class="fml">i<sub>t</sub> = r*<sub>t</sub> + π<sub>t</sub> + <em>φ</em><sub>π</sub>(π<sub>t</sub> − π*) + <em>φ</em><sub>y</sub>(y<sub>t</sub> − y*<sub>t</sub>)</div>
+        <div class="greek">φ<sub>π</sub> = 通脹反應係數（≈1.5）　φ<sub>y</sub> = 產出缺口係數（≈0.5）</div>
+        <p>在 r*<sub>t</sub> 與潛在產出 y*<sub>t</sub> 同步上修的環境下，若機械式地按通脹降幅降息，將使實際政策利率陷入過度寬鬆，催生資產泡沫。</p>
+      </div>
+    </div>
+
+    <h3 class="sub">複合誤差：為何「按通脹降幅降息」會出錯</h3>
+    <p class="sec-sub" style="font-size:14px">假設通脹由 4% 降至 2%，同時 r* 因 TFP 上升而由 0.5% 升至 1.8%。兩種反應方式的結果：</p>
+    <div class="grid3">
+      <div class="mini">
+        <div class="big" style="color:var(--rose)">−2.0pp</div>
+        <h4>機械式降息</h4>
+        <p>只看通脹下降，政策利率同步降 2pp。但中性利率已上升 1.3pp，實際政策立場<strong>淨寬鬆約 3.3pp</strong> → 需求過熱、資產泡沫。</p>
+      </div>
+      <div class="mini">
+        <div class="big" style="color:var(--emerald)">0.0pp</div>
+        <h4>校準式持平</h4>
+        <p>識別 r* 上移，將 r* 增量（+1.3pp）計入基準後再評估。政策利率降幅應約為 2 − 1.3 = <strong>0.7pp</strong>，而非 2pp。</p>
+      </div>
+      <div class="mini">
+        <div class="big" style="color:var(--cyan)">1.3pp</div>
+        <h4>r* 誤判代價</h4>
+        <p>若把 r* 上移誤讀為暫時性衝擊而不計入，等於在整個降息週期<strong>系統性低估限制性不足</strong>，錯失的通脹回落幅度即為此數。</p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:24px">
+      <strong>歷史鏡鑑（1990 年代格林斯潘式抉擇）：</strong>在資訊革命時期，美聯儲頂住傳統計量模型發出的過熱警告，判定生產力上升大幅擴大了潛在產出 y*，從而容忍了低失業率而未激進加息，促成黃金增長期。面對本輪 AI，央行決策者最核心的挑戰是<strong>即時識別單位勞動成本（ULC）的下降本質</strong>，避免過度壓制真實增長潛能。
+    </div>
+
+    <div class="quote">
+      「生產力奇蹟不會在通脹數據上先顯現，而是在單位勞動成本上先顯現。」
+      <span class="who">— 本頁分析框架的核心判讀原則</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MATRIX ============ -->
+<section id="matrix">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">04</span> 三階段政策矩陣</h2>
+    <p class="sec-sub">每個階段的政策陷阱各不相同。最危險的不是做錯方向，而是在正確方向上「做過頭」。</p>
+
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>階段與特徵</th><th>自然實質利率 r*</th><th>通脹動能 π<sub>t</sub></th><th>央行降息方針</th><th>關鍵政策陷阱</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="font-bold"><strong style="color:var(--amber)">第 I 階段：投資建設期</strong></td>
+            <td>由 Capex 融資強烈拉升</td>
+            <td><strong style="color:var(--amber)">推升（高於 2%）</strong></td>
+            <td><span class="pill rose">Higher for Longer</span><br><span style="font-size:12px">暫停降息</span></td>
+            <td>因總量就業放緩而過早降息，引發二次通脹。</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--indigo)">第 II 階段：擴散轉折期</strong></td>
+            <td>維持在高位平台區</td>
+            <td><strong style="color:var(--indigo)">快速滑落至 2%</strong></td>
+            <td><span class="pill amber">Shallow Cuts</span><br><span style="font-size:12px">淺度降息</span></td>
+            <td><strong>低估 r* 陷阱：</strong>通脹每跌 1% 就降息 1%，導致貨幣被動大放水。</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--emerald)">第 III 階段：全面普及期</strong></td>
+            <td>固化於新高位（1.5%–2%）</td>
+            <td><strong style="color:var(--emerald)">結構性偏低（良性去通脹）</strong></td>
+            <td><span class="pill emerald">鎖定 3.5%–4%</span><br><span style="font-size:12px">較高終點利率</span></td>
+            <td>誤將供給側良性低物價視為需求通縮，實施量化寬鬆。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENARIOS ============ -->
+<section id="scenarios">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">05</span> 三情境分析</h2>
+    <p class="sec-sub">同一模型在三組參數下的分歧。點擊上方「互動模擬器」的預設按鈕可即時重現。</p>
+
+    <div class="scen">
+      <div class="s" style="border-color:rgba(139,157,255,.3)">
+        <h4 style="color:var(--indigo)">基準情境</h4>
+        <div class="p">capex 70 · tfp 60 · markup 30</div>
+        <ul>
+          <li>峰值通脹約 3.4%，第 3 年見頂</li>
+          <li>第 5 年供需力量交叉</li>
+          <li>穩態通脹低於 1%，r* 上移至 ~1.6%</li>
+          <li>央行終點利率約 3.5%</li>
+        </ul>
+        <div class="v" style="color:var(--indigo)">最可能的著陸路徑</div>
+      </div>
+
+      <div class="s" style="border-color:rgba(242,102,139,.3)">
+        <h4 style="color:var(--rose)">泡沫情境</h4>
+        <div class="p">capex 95 · tfp 40 · markup 55</div>
+        <ul>
+          <li>需求衝擊近乎失控，峰值通脹可達 4%+</li>
+          <li>TFP 兌現不足，供給側無法抵銷</li>
+          <li>高集中度阻礙降價傳導</li>
+          <li>央行被迫長期維持高利率，硬著陸風險上升</li>
+        </ul>
+        <div class="v" style="color:var(--rose)">政策落後曲線風險</div>
+      </div>
+
+      <div class="s" style="border-color:rgba(38,194,129,.3)">
+        <h4 style="color:var(--emerald)">樂觀情境</h4>
+        <div class="p">capex 45 · tfp 90 · markup 15</div>
+        <ul>
+          <li>建置瓶頸較輕，需求衝擊短暫</li>
+          <li>TFP 快速擴散，去通脹提前至第 3 年</li>
+          <li>低集中度加速價格傳導</li>
+          <li>央行可較早轉向，但 r* 仍需上修</li>
+        </ul>
+        <div class="v" style="color:var(--emerald)">格林斯潘式軟著陸</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INDICATORS ============ -->
+<section id="indicators">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">06</span> 實務監測指標</h2>
+    <p class="sec-sub">驗證本框架是否正在兌現，需追蹤以下可觀測序列，而非僅看 CPI 標題數字。</p>
+
+    <div class="grid3">
+      <div class="mini">
+        <div class="big">ULC</div>
+        <h4>單位勞動成本</h4>
+        <p>最關鍵的前導指標。若生產力真實提升，ULC 應在 CPI 明顯回落<strong>之前</strong>就已下行。ULC 不降而 CPI 降，代表那是需求衰退而非供給改善。</p>
+      </div>
+      <div class="mini">
+        <div class="big">PCE 服務</div>
+        <h4>核心服務業通脹</h4>
+        <p>最黏著的部分。若 AI 真的壓低成本，服務業通脹應逐步向商品通脹收斂。此項不放緩，去通脹故事就未成立。</p>
+      </div>
+      <div class="mini">
+        <div class="big">r-star</div>
+        <h4>中性利率估計（五種方法）</h4>
+        <p>Laubach-Williams、HLW 模型、TIPS 遠期利率、壽險年金定價、央行 SEP 長期點陣圖。五者同時上修才是結構性訊號。</p>
+      </div>
+      <div class="mini">
+        <div class="big">電力 Capex</div>
+        <h4>電網與發電投資</h4>
+        <p>觀察瓶頸是否真的在緩解。併網排隊時長、變壓器交期、電價合約，都是需求側壓力的即時指標。</p>
+      </div>
+      <div class="mini">
+        <div class="big">Markup</div>
+        <h4>企業加成率</h4>
+        <p>若 TFP 大幅提升但價格不降，利潤率會擴張。加成率持續走高，說明降價傳導被壟斷結構阻斷。</p>
+      </div>
+      <div class="mini">
+        <div class="big">Adoption</div>
+        <h4>企業採用率</h4>
+        <p>技術擴散速度，而非技術能力上限，決定去通脹何時到來。分行業追蹤實際部署率。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq">
+  <div class="wrap">
+    <h2 class="sec"><span class="num">07</span> 常見誤區</h2>
+    <p class="sec-sub">以下四個推論在直覺上很吸引，但與框架的結論相衝突。</p>
+
+    <details>
+      <summary>「AI 提升生產力，所以一定是去通脹，央行應該降息」</summary>
+      <div class="body">
+        <p>這是把<strong>長期結論</strong>套用到<strong>短期</strong>。生產力的提升需要 5–8 年才能穿透到價格層面，而資本支出的需求衝擊在 1–3 年內就會顯現。在供給改善到來之前，先經歷的是通脹上行。</p>
+        <p>更關鍵的是：若央行因預期未來去通脹而提前大幅降息，會<strong>加劇</strong>第 I 階段的需求過熱，反而推遲均衡到來。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>「通脹回落，所以實質利率上升，政策已經夠緊」</summary>
+      <div class="body">
+        <p>名目利率不變而通脹下降，<strong>實質</strong>利率確實上升。但判斷政策鬆緊必須相對於 r*，而非相對於零。若 r* 同時上升更多，實質利率上升但<strong>限制性反而下降</strong>。</p>
+        <p>這就是第 II 階段的核心陷阱：看起來在緊縮，實際上在放鬆。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>「低失業率＋低通脹 = 經濟過熱，必須加息」</summary>
+      <div class="body">
+        <p>此推論假設潛在產出 y* 固定。但技術衝擊會直接提高 y*，使同樣失業率對應更低的中性失業率。1990 年代美聯儲正是因為意識到這點而選擇不加息。</p>
+        <p>正確問法不是「失業率是否太低」，而是「<strong>單位勞動成本是否在下行</strong>」。若 ULC 下行，低失業率是可持續的。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>「去通脹就是好消息，央行應同步降息回到低利率常態」</summary>
+      <div class="body">
+        <p>供給側驅動的去通脹是<strong>良性的</strong>——經濟在更低價格下產出更多。但這不意味利率應回到危機後的極低水平，因為推升產出的正是更高的資本回報率，而後者要求更高的實質利率來出清。</p>
+        <p>終點利率 3.5%–4% 的新常態，才是與此技術環境一致的貨幣政策中樞。</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>AI Macroeconomic Dynamics &amp; Monetary Policy Interactive Framework · 2026</div>
+    <div class="foot-links">
+      <a href="#bluf">結論先行</a>
+      <a href="#sim">互動模擬器</a>
+      <a href="#matrix">政策矩陣</a>
+      <a href="#faq">常見誤區</a>
+    </div>
+    <div class="disc">
+      本頁為經濟分析框架的教學演示，圖表數值由頁內簡化模型即時計算，用以說明傳導機制與政策邏輯，非央行實際反應函數、亦不構成投資建議。所引參數區間為分析性假設，實際結果取決於技術擴散速度、政策反應與外部環境。
+    </div>
+  </div>
+</footer>
+
+<script>
+// ============================================================
+//  Simulation engine
+// ============================================================
+function calculateMacroPath(capexFactor, tfpFactor, markupFactor){
+  const years = Array.from({length:16},(_,i)=>i);
+  const BASE = 2.0;
+  const inflation=[], neutral=[], policy=[];
+  let peak=-999, peakYear=0, inflection=null;
+
+  for(let t=0;t<=15;t++){
+    // demand: Gamma impulse peaking ~ year 2.5
+    const capexPeak = (capexFactor/100)*1.8;
+    const demand = capexPeak * (t/2.5) * Math.exp(1-(t/2.5));
+    // supply: logistic adoption, midpoint 5.5
+    const maxDis = (tfpFactor/100)*2.8;
+    const adopt = 1/(1+Math.exp(-0.85*(t-5.5)));
+    const passThrough = 1 - (markupFactor/100)*0.45;
+    const supply = -maxDis*adopt*passThrough;
+
+    const net = BASE + demand + supply;
+    inflation.push(+net.toFixed(2));
+    if(net>peak){peak=net;peakYear=t;}
+    if(inflection===null && t>2 && Math.abs(supply)>=demand) inflection=t;
+
+    // r* : crisis-era 0.5% + capex pull + structural TFP shift
+    const tfpShift = (tfpFactor/100)*1.2*adopt;
+    const capexPull = demand*0.35;
+    const rStar = 0.5 + capexPull + tfpShift;
+    neutral.push(+rStar.toFixed(2));
+
+    // Taylor
+    const i = Math.max(0.25, rStar + net + 0.5*(net-BASE));
+    policy.push(+i.toFixed(2));
+  }
+
+  // extra analytics
+  let cum=0;
+  for(const v of inflation) cum += (v-BASE);
+  const rShift = neutral[15]-0.5;
+  const realRate = +(policy[15]-inflation[15]).toFixed(2);
+  const outputGap = +((tfpFactor/100)*3.2).toFixed(1);
+
+  return {years,inflation,neutral,policy,
+    peak:peak.toFixed(2), peakYear, inflection:inflection===null?5:inflection,
+    termPi:inflation[15].toFixed(2), termI:policy[15].toFixed(2),
+    cum:cum.toFixed(1), rShift:rShift.toFixed(2), realRate, outputGap};
+}
+
+const $ = id => document.getElementById(id);
+let chart=null;
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function drawFallback(canvas,res){
+  // no external CDN available -> render with plain 2D canvas
+  const dpr = window.devicePixelRatio||1;
+  const box = canvas.parentElement.getBoundingClientRect();
+  canvas.width = box.width*dpr; canvas.height = box.height*dpr;
+  canvas.style.width='100%'; canvas.style.height='100%';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=box.width,H=box.height, pad={l:48,r:16,t:16,b:34};
+  const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+  const all=[...res.inflation,...res.policy,...res.neutral,2];
+  const yMax=Math.ceil(Math.max(...all))+1, yMin=0;
+  const X=i=>pad.l+(i/15)*iw;
+  const Y=v=>pad.t+ih-((v-yMin)/(yMax-yMin))*ih;
+
+  ctx.clearRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(51,70,95,.55)'; ctx.lineWidth=1;
+  ctx.font='11px ui-monospace,Menlo,monospace'; ctx.fillStyle='#7b8ca6';
+  for(let v=0;v<=yMax;v++){
+    const y=Y(v); ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.fillText(v+'%',8,y+4);
+  }
+  for(let i=0;i<=15;i+=3){
+    const x=X(i); ctx.strokeStyle='rgba(51,70,95,.3)';
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ih); ctx.stroke();
+    ctx.fillText('Y'+i, x-8, H-12);
+  }
+  // 2% baseline
+  ctx.strokeStyle='#64748b'; ctx.setLineDash([6,6]); ctx.beginPath();
+  ctx.moveTo(pad.l,Y(2)); ctx.lineTo(W-pad.r,Y(2)); ctx.stroke(); ctx.setLineDash([]);
+
+  const line=(data,color,dash,width)=>{
+    ctx.strokeStyle=color; ctx.lineWidth=width; ctx.setLineDash(dash||[]);
+    ctx.beginPath(); data.forEach((v,i)=>{ i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v)); }); ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  // inflation fill
+  ctx.fillStyle='rgba(245,177,61,.12)';
+  ctx.beginPath(); ctx.moveTo(X(0),Y(0));
+  res.inflation.forEach((v,i)=>ctx.lineTo(X(i),Y(v)));
+  ctx.lineTo(X(15),Y(0)); ctx.closePath(); ctx.fill();
+  line(res.inflation,'#f5b13d',null,3);
+  line(res.policy,'#4cc9f0',[5,4],2.5);
+  line(res.neutral,'#26c281',null,2);
+  // peak marker
+  const px=X(res.peakYear), py=Y(+res.peak);
+  ctx.fillStyle='#f5b13d'; ctx.beginPath(); ctx.arc(px,py,4,0,7); ctx.fill();
+  ctx.fillStyle='#cbd5e1';
+  ctx.fillText('peak '+res.peak+'%', Math.min(px+8,W-90), py-8);
+}
+
+function update(){
+  const capex=+$('slider-capex').value, tfp=+$('slider-tfp').value, markup=+$('slider-markup').value;
+  $('val-capex').textContent=capex+'%';
+  $('val-tfp').textContent=tfp+'%';
+  $('val-markup').textContent=markup+'%';
+
+  const r=calculateMacroPath(capex,tfp,markup);
+
+  $('kpi-peak').textContent=r.peak+'%';
+  $('kpi-peak-n').textContent='出現在第 '+r.peakYear+' 年';
+  $('kpi-inflect').textContent='第 '+r.inflection+' 年';
+  $('kpi-termpi').textContent=r.termPi+'%';
+  $('kpi-termp').textContent=r.termI+'%';
+
+  $('kpi-cum').textContent=(r.cum>0?'+':'')+r.cum+' pp';
+  $('kpi-gap').textContent='+'+r.outputGap+'%';
+  $('kpi-real').textContent=r.realRate+'%';
+  $('kpi-rshift').textContent='+'+r.rShift+' pp';
+
+  if(chart){
+    chart.data.datasets[0].data=r.inflation;
+    chart.data.datasets[1].data=r.policy;
+    chart.data.datasets[2].data=r.neutral;
+    chart.update('none');
+  } else {
+    drawFallback($('macroChart'),r);
+  }
+}
+
+function boot(){
+  const cv=$('macroChart');
+  if(typeof Chart!=='undefined'){
+    const rows=getComputedStyle(document.documentElement);
+    chart=new Chart(cv.getContext('2d'),{
+      type:'line',
+      data:{labels:Array.from({length:16},(_,i)=>'Year '+i),
+        datasets:[
+          {label:'淨通脹率 π_t (%)',data:[],borderColor:'#f5b13d',backgroundColor:'rgba(245,177,61,.12)',
+           borderWidth:3,fill:true,tension:.35,pointRadius:3,pointHoverRadius:6},
+          {label:'央行政策利率 i_t (%)',data:[],borderColor:'#4cc9f0',backgroundColor:'transparent',
+           borderWidth:2.5,borderDash:[5,4],tension:.3,pointRadius:2},
+          {label:'中性實質利率 r* (%)',data:[],borderColor:'#26c281',backgroundColor:'transparent',
+           borderWidth:2,tension:.3,pointRadius:0},
+          {label:'央行目標 2.0%',data:Array(16).fill(2),borderColor:'#64748b',
+           borderWidth:1.5,borderDash:[6,6],pointRadius:0,fill:false}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{position:'top',labels:{color:'#cbd5e1',font:{size:12},boxWidth:18,padding:14}},
+          tooltip:{backgroundColor:'#0b1120',borderColor:'#33465f',borderWidth:1,
+            titleColor:'#f8fafc',bodyColor:'#cbd5e1',padding:10,
+            callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}%`}}
+        },
+        scales:{
+          x:{grid:{color:'rgba(51,70,95,.35)'},ticks:{color:'#7b8ca6',font:{size:11}}},
+          y:{grid:{color:'rgba(51,70,95,.35)'},ticks:{color:'#7b8ca6',font:{size:11},
+            callback:v=>v+'%'},suggestedMin:0,suggestedMax:6}
+        }}
+    });
+  }
+  update();
+
+  ['slider-capex','slider-tfp','slider-markup'].forEach(id=>
+    $(id).addEventListener('input',update));
+
+  document.querySelectorAll('[data-preset]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const [c,t,m]=b.dataset.preset.split(',').map(Number);
+      $('slider-capex').value=c; $('slider-tfp').value=t; $('slider-markup').value=m;
+      update();
+    });
+  });
+
+  // scrollspy
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const secs=links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const spy=()=>{
+    let cur=secs[0];
+    for(const s of secs){ if(s.getBoundingClientRect().top<=140) cur=s; }
+    links.forEach(a=>a.classList.toggle('on', a.getAttribute('href')==='#'+cur.id));
+  };
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+}
+window.addEventListener('DOMContentLoaded',boot);
+window.addEventListener('resize',()=>{ if(!chart) update(); });
+</script>
+</body>
+</html>
